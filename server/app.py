@@ -23,12 +23,40 @@ def bakeries():
     bakeries = [bakery.to_dict() for bakery in Bakery.query.all()]
     return make_response(  bakeries,   200  )
 
-@app.route('/bakeries/<int:id>')
+@app.route('/bakeries/<int:id>', methods=['GET', 'PATCH'])
 def bakery_by_id(id):
+    if request.method == 'GET':
+        bakery = Bakery.query.filter_by(id=id).first()
+        bakery_serialized = bakery.to_dict()
+        return make_response ( bakery_serialized, 200  )
+    elif request.method == 'PATCH':
+        to_patch = Bakery.query.filter_by(id=id).first()
+        for attr in request.form:
+            setattr(to_patch, attr, request.form.get(attr))
+            
+        db.session.add(to_patch)
+        db.session.commit()
+        
+        to_p = to_patch.to_dict()
+        response = make_response(jsonify(to_p), 200)
+        return response
 
-    bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
-    return make_response ( bakery_serialized, 200  )
+        
+@app.route('/baked_goods', methods=['GET', 'POST', 'DELETE'])
+def baked_goods():
+    if request.method == 'POST':
+        new_bake = BakedGood(
+            name=request.form.get('name'),
+            price=request.form.get('price'),
+            bakery_id=request.form.get('bakery_id')
+        )
+        db.session.add(new_bake)
+        db.session.commit()
+        
+        newie = new_bake.to_dict()
+        response = make_response(jsonify(newie), 201)
+        return response
+        
 
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
@@ -37,6 +65,21 @@ def baked_goods_by_price():
         bg.to_dict() for bg in baked_goods_by_price
     ]
     return make_response( baked_goods_by_price_serialized, 200  )
+
+@app.route('/baked_goods/<int:id>', methods=['DELETE'])
+def delete_baked_goods(id):
+    to_del = BakedGood.query.filter_by(id=id).first()
+    db.session.delete(to_del)
+    db.session.commit()
+    
+    resp = {
+        'delete_successful': True,
+        'message': 'Goods deleted!'
+    }
+    response = make_response(
+        jsonify(resp), 200
+    )
+    return response
    
 
 @app.route('/baked_goods/most_expensive')
